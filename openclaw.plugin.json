@@ -1,0 +1,18 @@
+{
+  "id": "openclaw-skills-loader",
+  "name": "Skills Loader",
+  "description": "Load local skills into the frontend input box",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "skillsPaths": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Custom paths to scan for skills (default: ~/.agents/skills/)"
+      }
+    }
+  }
+}

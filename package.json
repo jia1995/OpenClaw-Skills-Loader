@@ -1,0 +1,24 @@
+{
+  "name": "@local/openclaw-skills-loader",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Load local skills into OpenClaw frontend input box",
+  "main": "index.ts",
+  "files": [
+    "index.ts",
+    "skills-scanner.ts",
+    "types.ts",
+    "openclaw.plugin.json",
+    "frontend/"
+  ],
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "compat": {
+      "pluginApi": ">=2026.3.24-beta.2",
+      "minGatewayVersion": "2026.3.24-beta.2"
+    }
+  },
+  "dependencies": {}
+}

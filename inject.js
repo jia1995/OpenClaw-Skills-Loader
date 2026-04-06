@@ -1,95 +1,32 @@
-# OpenClaw Skills Loader 使用指南
+/**
+ * OpenClaw Skills Loader - Production Injection Script
+ *
+ * This script injects the skills-loader component into the OpenClaw Control UI
+ * by modifying the index.html entry point.
+ *
+ * Usage: Run this script after building the frontend components, or manually
+ * add the generated HTML to index.html.
+ */
 
-## 概述
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-OpenClaw Skills Loader 是一个本地插件，允许你在 OpenClaw 前端输入框旁加载和使用本地的 skills（SKILL.md 文件）。
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-## 项目结构
+const CONTROL_UI_DIR = path.join(
+  process.env.APPDATA || "",
+  "npm",
+  "node_modules",
+  "openclaw",
+  "dist",
+  "control-ui",
+);
 
-```
-openclawSkill/
-├── package.json                    # 插件包配置
-├── openclaw.plugin.json            # 插件清单
-├── index.ts                        # 插件入口：注册 HTTP routes
-├── skills-scanner.ts               # 扫描 SKILL.md 文件
-├── types.ts                        # 共享类型定义
-├── frontend/
-│   ├── skills-button.ts            # 输入框旁的 Skills 按钮
-│   ├── skills-panel.ts             # Skills 选择面板
-│   └── skills-loader.ts            # 主组件：协调按钮、面板、输入框
-├── inject.js                       # 生产环境注入脚本
-└── USAGE.md                        # 本文件
-```
+const INDEX_HTML = path.join(CONTROL_UI_DIR, "index.html");
 
-## 安装步骤
-
-### 1. 配置插件
-
-在你的 `openclaw.json` 配置文件中添加插件配置。配置文件通常位于：
-- Windows: `C:\Users\<用户名>\.openclaw\openclaw.json`
-
-添加以下内容到 `plugins` 部分：
-
-```json
-{
-  "plugins": {
-    "allow": ["openclaw-skills-loader",...],
-    "entries": {
-      ...
-      "openclaw-skills-loader": {
-        "enabled": true,
-        "config": {
-          "skillsPaths": [
-            "your\\local\\agent\\skills\\path\\"
-          ]
-        }
-      }
-    },
-    "installs": {
-      ...
-      "openclaw-skills-loader": {
-        "installPath": "your\\current\\project\\path",
-        "source": "local"
-      }
-    }
-  }
-}
-```
-
-**注意**：请将 `skillsPaths` 中的路径替换为你实际的 skills 目录路径。
-
-### 2. 重启 OpenClaw Gateway
-
-配置完成后，重启 OpenClaw Gateway 使插件生效：
-
-```bash
-openclaw gateway
-```
-
-### 3. 注入前端脚本（生产环境）
-
-由于你的 OpenClaw 是 npm 全局安装的生产版本，前端代码已打包在 `dist/control-ui/` 目录中。我们需要通过注入脚本的方式添加 Skills 按钮。
-
-#### 自动注入（推荐）
-
-运行提供的注入脚本：
-
-```powershell
-node E:\workspace\openclawSkill\inject.js
-```
-
-该脚本会自动找到 OpenClaw 的 `index.html` 并在 `</body>` 标签前注入 Skills Loader 代码。
-
-#### 手动注入
-
-如果自动注入失败，可以手动修改 `index.html`：
-
-1. 打开文件：`your\local\openclaw\frontPage\file\path`
-
-2. 在 `</body>` 标签前添加以下代码：
-
-```html
-<!-- Skills Loader Extension -->
+const INJECTION_HTML = `<!-- Skills Loader Extension -->
 <script type="module">
 (function() {
   const GATEWAY_URL = window.location.origin;
@@ -278,123 +215,24 @@ node E:\workspace\openclawSkill\inject.js
 })();
 </script>
 <!-- End Skills Loader Extension -->
-```
+`;
 
-3. 保存文件并刷新浏览器。
-
-## 使用方法
-
-### 1. 加载 Skills
-
-1. 打开 OpenClaw Web UI（Control UI）
-2. 在输入框旁边会看到一个 **"Skills"** 按钮
-3. 点击按钮，会弹出可用的 skills 列表面板
-4. 在搜索框中可以搜索特定的 skill
-5. 点击任意 skill，其内容会被加载到输入框中
-
-### 2. 自定义 Skills 路径
-
-在 `openclaw.json` 中配置 `skillsPaths` 数组，添加你想要扫描的目录：
-
-```json
-{
-  "plugins": {
-    "entries": {
-      "openclaw-skills-loader": {
-        "enabled": true,
-        "config": {
-          "skillsPaths": [
-            "your\\local\\agent\\skills\\path\\"
-          ]
-        }
-      }
-    }
+function inject() {
+  if (!fs.existsSync(INDEX_HTML)) {
+    console.error("Error: index.html not found at", INDEX_HTML);
+    process.exit(1);
   }
+
+  let html = fs.readFileSync(INDEX_HTML, "utf-8");
+
+  if (html.includes("Skills Loader Extension")) {
+    console.log("Skills Loader already injected. Skipping.");
+    return;
+  }
+
+  html = html.replace("</body>", INJECTION_HTML + "\n</body>");
+  fs.writeFileSync(INDEX_HTML, html, "utf-8");
+  console.log("Skills Loader injected successfully into", INDEX_HTML);
 }
-```
 
-### 3. API 端点
-
-插件注册了两个 HTTP API 端点：
-
-#### GET `/api/skills/list`
-
-返回所有可用的 skills 列表。
-
-**响应示例：**
-
-```json
-{
-  "skills": [
-    {
-      "name": "brainstorming",
-      "path": "C:\\Users\\<用户名>\\.agents\\skills\\brainstorming",
-      "description": "Brainstorming Ideas Into Designs"
-    },
-    {
-      "name": "writing-plans",
-      "path": "C:\\Users\\<用户名>\\.agents\\skills\\writing-plans",
-      "description": "Writing Implementation Plans"
-    }
-  ]
-}
-```
-
-#### GET `/api/skills/:name/content`
-
-返回指定 skill 的完整内容（SKILL.md 文件内容）。
-
-**响应示例：**
-
-```json
-{
-  "name": "brainstorming",
-  "content": "# Skill: brainstorming\n\n# Brainstorming Ideas Into Designs\n\n..."
-}
-```
-
-## 故障排除
-
-### Skills 列表为空
-
-1. 检查 `skillsPaths` 配置是否正确
-2. 确保路径下存在包含 `SKILL.md` 文件的目录
-3. 查看 Gateway 日志是否有错误
-
-### 前端按钮不显示
-
-1. 确认 `inject.js` 已成功运行（查看 index.html 是否包含 "Skills Loader Extension"）
-2. 检查浏览器控制台是否有 JavaScript 错误
-3. 确认 Gateway 正在运行且端口正确（默认 18789）
-4. 刷新浏览器页面
-
-### 加载 skill 内容失败
-
-1. 确认 Gateway 的 HTTP routes 已正确注册
-2. 检查认证 token 是否正确（如果使用 token 认证）
-3. 查看 Gateway 日志获取详细错误信息
-
-### 更新 OpenClaw 后按钮消失
-
-每次更新 OpenClaw 后，`dist/control-ui/index.html` 会被覆盖，需要重新运行注入脚本：
-
-```powershell
-node inject.js
-```
-
-## 开发说明
-
-### 依赖项
-
-- OpenClaw >= 2026.3.24-beta.2
-- Node.js >= 22
-
-### 前端源码 vs 生产环境
-
-- `frontend/` 目录包含 TypeScript 源码（Lit 组件），适用于从源码构建的 OpenClaw
-- `inject.js` 是纯 JavaScript 注入脚本，适用于 npm 全局安装的生产版本
-- 生产版本的前端位于：`%APPDATA%\npm\node_modules\openclaw\dist\control-ui\`
-
-## 许可证
-
-MIT
+inject();
